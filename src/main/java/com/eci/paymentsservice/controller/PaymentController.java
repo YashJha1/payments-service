@@ -1,50 +1,82 @@
-package com.eci.paymentsservice.controller;
+package com.eci.paymentservice.controller;
 
-import com.eci.paymentsservice.dto.PaymentRequest;
-import com.eci.paymentsservice.dto.PaymentResponse;
-import com.eci.paymentsservice.service.PaymentService;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 @RestController
 @RequestMapping("/v1/payments")
-@RequiredArgsConstructor
+@Slf4j
 public class PaymentController {
 
-    private final PaymentService service;  // ✅ ensure this line exists
+    private static final String LOCAL_PATH = "/home/yash/ECI-Microservices/Infra/init/payments/eci_payments.csv";
+    private static final String DOCKER_PATH = "/app/init/payments/eci_payments.csv";
 
-    @PostMapping("/charge")
-    public PaymentResponse charge(@RequestBody PaymentRequest req,
-                                  @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
-        req.setIdempotencyKey(idempotencyKey);
-        return service.charge(req);
-    }
-
-    @GetMapping("/{id}")
-    public PaymentResponse getPayment(@PathVariable UUID id) {
-        return service.getPayment(id);
-    }
-
-    @PostMapping("/{id}/refund")
-    public PaymentResponse refund(@PathVariable UUID id,
-                                  @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
-        return service.refund(id, idempotencyKey);
-    }
-
-    // ✅ New GET endpoint to view payments in browser
     @GetMapping
-    public List<PaymentResponse> getAllPayments() {
-        return service.getAllPayments();
-    }
+    public ResponseEntity<?> getPayments(@RequestParam(required = false) String orderId) {
+        List<Map<String, String>> paymentsList = new ArrayList<>();
 
-    // ✅ Browser health endpoint
-    @GetMapping("/health")
-    public Map<String, String> health() {
-        return Map.of("status", "Payments Service is running");
+        try {
+            // ✅ Auto-detect correct file path
+            String csvPath = new java.io.File(LOCAL_PATH).exists() ? LOCAL_PATH : DOCKER_PATH;
+            var fileResource = new FileSystemResource(csvPath);
+
+            if (!fileResource.exists()) {
+                return ResponseEntity.internalServerError().body(Map.of("error", "File not found at " + csvPath));
+            }
+
+            // ✅ Read CSV contents
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(fileResource.getInputStream(), StandardCharsets.UTF_8))) {
+
+                String headerLine = reader.readLine();
+                if (headerLine == null) {
+                    return ResponseEntity.ok(Collections.emptyList());
+                }
+
+                String[] headers = headerLine.split(",");
+                String line;
+
+                while ((line = reader.readLine()) != null) {
+                    String[] values = line.split(",");
+                    Map<String, String> record = new LinkedHashMap<>();
+                    for (int i = 0; i < headers.length; i++) {
+                        record.put(headers[i].trim(), i < values.length ? values[i].trim() : "");
+                    }
+                    paymentsList.add(record);
+                }
+            }
+
+            // ✅ If orderId is provided, filter results
+            if (orderId != null && !orderId.isEmpty()) {
+                List<Map<String, String>> filtered = new ArrayList<>();
+                for (Map<String, String> payment : paymentsList) {
+                    if (payment.getOrDefault("order_id", "").equals(orderId)) {
+                        filtered.add(payment);
+                    }
+                }
+
+                if (filtered.isEmpty()) {
+                    return ResponseEntity.status(404)
+                            .body(Map.of("message", "No payments found for order_id: " + orderId));
+                }
+
+                return ResponseEntity.ok(filtered);
+            }
+
+            // ✅ Return all payments if no orderId specified
+            return ResponseEntity.ok(paymentsList);
+
+        } catch (Exception e) {
+            log.error("Error reading CSV: {}", e.getMessage());
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
     }
 }
 

@@ -1,0 +1,64 @@
+package com.eci.paymentservice.service.impl;
+
+import com.eci.paymentservice.dto.PaymentRequest;
+import com.eci.paymentservice.dto.PaymentResponse;
+import com.eci.paymentservice.model.Payment;
+import com.eci.paymentservice.repository.PaymentRepository;
+import com.eci.paymentservice.service.PaymentService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentServiceImpl implements PaymentService {
+
+    private final PaymentRepository paymentRepository;
+
+    @Override
+    @Transactional
+    public PaymentResponse createPayment(PaymentRequest paymentRequest) {
+        log.info("💳 Creating payment for Order ID: {}", paymentRequest.getOrderId());
+
+        Payment payment = Payment.builder()
+                .orderId(paymentRequest.getOrderId())
+                .amount(paymentRequest.getAmount())
+                .currency(paymentRequest.getCurrency())
+                .paymentMethod(paymentRequest.getPaymentMethod())
+                .status("SUCCESS")
+                .createdAt(OffsetDateTime.now())
+                .build();
+
+        Payment saved = paymentRepository.save(payment);
+        log.info("✅ Payment saved successfully with ID: {}", saved.getPaymentId());
+
+        return mapToResponse(saved);
+    }
+
+    @Override
+    public List<PaymentResponse> getPaymentsByOrderId(String orderId) {
+        log.info("📄 Fetching payments for Order ID: {}", orderId);
+        return paymentRepository.findByOrderId(orderId)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    private PaymentResponse mapToResponse(Payment payment) {
+        return PaymentResponse.builder()
+                .paymentId(payment.getPaymentId())
+                .orderId(payment.getOrderId())
+                .amount(payment.getAmount())
+                .currency(payment.getCurrency())
+                .paymentMethod(payment.getPaymentMethod())
+                .status(payment.getStatus())
+                .createdAt(payment.getCreatedAt())
+                .build();
+    }
+}
+

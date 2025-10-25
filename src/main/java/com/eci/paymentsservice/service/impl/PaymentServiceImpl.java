@@ -1,76 +1,66 @@
-package com.eci.paymentsservice.service.impl;
+package com.eci.paymentservice.service.impl;
 
-import com.eci.paymentsservice.dto.*;
-import com.eci.paymentsservice.model.Payment;
-import com.eci.paymentsservice.repository.PaymentRepository;
-import com.eci.paymentsservice.service.PaymentService;
+import com.eci.paymentservice.dto.PaymentRequest;
+import com.eci.paymentservice.dto.PaymentResponse;
+import com.eci.paymentservice.model.Payment;
+import com.eci.paymentservice.repository.PaymentRepository;
+import com.eci.paymentservice.service.PaymentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentServiceImpl implements PaymentService {
 
-    private final PaymentRepository repo;
+    private final PaymentRepository paymentRepository;
 
     @Override
-    @Transactional
-    public PaymentResponse charge(PaymentRequest req) {
-        if (req.getIdempotencyKey() != null) {
-            var existing = repo.findByIdempotencyKey(req.getIdempotencyKey());
-            if (existing.isPresent()) {
-                return toResponse(existing.get());
-            }
-        }
+    public PaymentResponse createPayment(PaymentRequest paymentRequest) {
+        log.info("Creating payment for order {}", paymentRequest.getOrderId());
 
-        Payment p = Payment.builder()
-               // .paymentId(UUID.randomUUID())
-                .orderId(req.getOrderId())
-                .amount(req.getAmount())
-                .currency(req.getCurrency())
-                .paymentMethod(req.getPaymentMethod())
-                .status("PENDING")
-                .idempotencyKey(req.getIdempotencyKey())
+        Payment payment = Payment.builder()
+                .orderId(paymentRequest.getOrderId())
+                .amount(paymentRequest.getAmount())
+                .currency(paymentRequest.getCurrency())
+                .paymentMethod(paymentRequest.getPaymentMethod())
+                .status("SUCCESS")
+                .createdAt(OffsetDateTime.now())
                 .build();
 
-        p = repo.save(p);
+        Payment saved = paymentRepository.save(payment);
 
-        // Simulate success from provider
-        p.setStatus("COMPLETED");
-        p.setProviderTransactionId("PROV-" + UUID.randomUUID());
-        repo.save(p);
-
-        return toResponse(p);
+        return PaymentResponse.builder()
+                .paymentId(saved.getPaymentId())
+                .orderId(saved.getOrderId())
+                .amount(saved.getAmount())
+                .currency(saved.getCurrency())
+                .paymentMethod(saved.getPaymentMethod())
+                .status(saved.getStatus())
+                .createdAt(saved.getCreatedAt())
+                .build();
     }
 
     @Override
-    public PaymentResponse getPayment(UUID id) {
-        return repo.findById(id)
-                .map(this::toResponse)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
+    public List<PaymentResponse> getPaymentByOrderId(String orderId) {
+        return paymentRepository.findByOrderId(orderId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
-    @Transactional
-    public PaymentResponse refund(UUID id, String idempotencyKey) {
-        Payment p = repo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
-
-        if ("REFUNDED".equals(p.getStatus())) {
-            return toResponse(p);
-        }
-
-        p.setStatus("REFUNDED");
-        p.setProviderTransactionId("REF-" + UUID.randomUUID());
-        repo.save(p);
-
-        return toResponse(p);
+    public List<PaymentResponse> getAllPayments() {
+        return paymentRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
-    private PaymentResponse toResponse(Payment p) {
+    private PaymentResponse mapToResponse(Payment p) {
         return PaymentResponse.builder()
                 .paymentId(p.getPaymentId())
                 .orderId(p.getOrderId())
@@ -78,7 +68,6 @@ public class PaymentServiceImpl implements PaymentService {
                 .currency(p.getCurrency())
                 .paymentMethod(p.getPaymentMethod())
                 .status(p.getStatus())
-                .providerTransactionId(p.getProviderTransactionId())
                 .createdAt(p.getCreatedAt())
                 .build();
     }

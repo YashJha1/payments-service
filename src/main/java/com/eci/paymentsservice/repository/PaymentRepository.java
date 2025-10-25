@@ -1,13 +1,13 @@
-package com.eci.paymentsservice.repository;
+package com.eci.paymentservice.repository;
 
-import com.eci.paymentsservice.model.Payment;
+import com.eci.paymentservice.model.Payment;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
-import java.util.UUID;
+import org.springframework.stereotype.Repository;
 
-public interface PaymentRepository extends JpaRepository<Payment, UUID> {
-    /*Optional<Payment> findByOrderId(UUID orderId); */
-    Optional<Payment> findByOrderId(String orderId);
-    Optional<Payment> findByIdempotencyKey(String idempotencyKey);
+import java.util.List;
+
+@Repository
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+    List<Payment> findByOrderId(String orderId);
 }
 

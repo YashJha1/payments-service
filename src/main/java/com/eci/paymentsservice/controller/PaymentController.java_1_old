@@ -1,0 +1,43 @@
+package com.eci.paymentservice.controller;
+
+import com.eci.paymentservice.dto.PaymentRequest;
+import com.eci.paymentservice.dto.PaymentResponse;
+import com.eci.paymentservice.service.PaymentService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/v1/payments")
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    @PostMapping
+    public ResponseEntity<?> createPayment(@RequestBody PaymentRequest paymentRequest) {
+        try {
+            log.info("🧾 Received payment creation request for Order ID: {}", paymentRequest.getOrderId());
+            PaymentResponse response = paymentService.createPayment(paymentRequest);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("❌ Failed to create payment: {}", e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to create payment", "details", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/order/{orderId}")
+    public ResponseEntity<?> getPaymentsByOrderId(@PathVariable String orderId) {
+        List<PaymentResponse> payments = paymentService.getPaymentsByOrderId(orderId);
+        if (payments.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("message", "No payments found for Order ID: " + orderId));
+        }
+        return ResponseEntity.ok(payments);
+    }
+}
+

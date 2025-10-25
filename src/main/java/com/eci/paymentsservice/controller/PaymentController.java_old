@@ -1,0 +1,72 @@
+package com.eci.paymentsservice.controller;
+
+import com.eci.paymentsservice.dto.PaymentRequest;
+import com.eci.paymentsservice.dto.PaymentResponse;
+import com.eci.paymentsservice.service.PaymentService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/v1/payments")
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentController {
+
+    private final PaymentService service;
+
+    //  Charge a new payment
+    @PostMapping("/charge")
+    public PaymentResponse charge(@RequestBody PaymentRequest req,
+                                  @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        log.info(" Received payment charge request for Order ID: {}", req.getOrderId());
+        req.setIdempotencyKey(idempotencyKey);
+        return service.charge(req);
+    }
+
+    //  Fetch payment by payment ID
+    @GetMapping("/{id}")
+    public PaymentResponse getPayment(@PathVariable UUID id) {
+        log.info(" Fetching payment details for ID: {}", id);
+        return service.getPayment(id);
+    }
+
+    //  Refund a payment
+    @PostMapping("/{id}/refund")
+    public PaymentResponse refund(@PathVariable UUID id,
+                                  @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        log.info(" Refund initiated for Payment ID: {}", id);
+        return service.refund(id, idempotencyKey);
+    }
+
+    //  Fetch all payments
+    @GetMapping
+    public List<PaymentResponse> getAllPayments() {
+        log.info(" Fetching all payments");
+        return service.getAllPayments();
+    }
+
+    // Fetch payments by Order ID (for Orders → Payments linking)
+    @GetMapping("/order/{orderId}")
+    public List<PaymentResponse> getPaymentsByOrderId(@PathVariable String orderId) {
+        log.info(" Fetching all payments for Order ID: {}", orderId);
+        return service.getPaymentsByOrderId(orderId);
+    }
+
+    //@GetMapping("/order/{orderId}")
+    //public List<PaymentResponse> getPaymentsByOrder(@PathVariable String orderId) {
+    //	log.info("Fetching payments for order ID: {}", orderId);
+    //	return service.getPaymentsByOrderId(orderId);
+    //}
+
+    //  Browser-accessible health check
+    @GetMapping("/health")
+    public Map<String, String> health() {
+        return Map.of("status", " Payments Service is running fine");
+    }
+}
+

@@ -1,0 +1,56 @@
+package com.eci.paymentservice.controller;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+@RestController
+@RequestMapping("/v1/payments")
+@Slf4j
+public class PaymentController {
+
+    @GetMapping("/view")
+    public ResponseEntity<?> viewPaymentsFromCsv() {
+        List<Map<String, String>> paymentsList = new ArrayList<>();
+
+        try {
+            var resource = new ClassPathResource("eci_payments.csv");
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+
+                String headerLine = reader.readLine();
+                if (headerLine == null) {
+                    return ResponseEntity.ok(Collections.emptyList());
+                }
+
+                String[] headers = headerLine.split(",");
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] values = line.split(",");
+                    Map<String, String> record = new LinkedHashMap<>();
+
+                    for (int i = 0; i < headers.length; i++) {
+                        String key = headers[i].trim();
+                        String value = i < values.length ? values[i].trim() : "";
+                        record.put(key, value);
+                    }
+                    paymentsList.add(record);
+                }
+            }
+
+            log.info("Returning {} payment records from CSV", paymentsList.size());
+            return ResponseEntity.ok(paymentsList);
+
+        } catch (Exception e) {
+            log.error("Error reading payments.csv: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+}
+

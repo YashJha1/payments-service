@@ -1,0 +1,78 @@
+package com.eci.paymentservice.controller;
+
+import com.eci.paymentservice.dto.PaymentRequest;
+import com.eci.paymentservice.dto.PaymentResponse;
+import com.eci.paymentservice.service.PaymentService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/v1/payments")
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    @GetMapping
+    public ResponseEntity<?> homePage() {
+    	return ResponseEntity.ok(Map.of(
+        	    "message", "✅ Payments Service is running",
+        	"available_endpoints", List.of(
+                	    "POST /v1/payments  - Create a new payment",
+                	    "GET  /v1/payments/order/{orderId} - Retrieve payments for an order"
+                )
+    	));
+    }
+
+
+    // ✅ Create new payment
+    @PostMapping
+    public ResponseEntity<?> createPayment(@RequestBody PaymentRequest paymentRequest) {
+        try {
+            log.info("🧾 Received payment creation request for Order ID: {}", paymentRequest.getOrderId());
+            PaymentResponse response = paymentService.createPayment(paymentRequest);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("❌ Failed to create payment: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Failed to create payment", "details", e.getMessage()));
+        }
+    }
+
+    // ✅ Get payments by order ID
+    @GetMapping("/order/{orderId}")
+    public ResponseEntity<?> getPaymentsByOrderId(@PathVariable String orderId) {
+        try {
+            List<PaymentResponse> payments = paymentService.getPaymentsByOrderId(orderId);
+            if (payments.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of(
+                        "message", "No payments found for Order ID: " + orderId
+                ));
+            }
+            return ResponseEntity.ok(payments);
+        } catch (Exception e) {
+            log.error("❌ Error fetching payments for Order ID {}: {}", orderId, e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("error", "Internal Server Error", "details", e.getMessage()));
+        }
+    }
+
+    // ✅ Default endpoint for browser access (so you can test visually)
+    @GetMapping
+    public ResponseEntity<?> defaultPage() {
+        return ResponseEntity.ok(Map.of(
+                "message", "Payments Service is running ✅",
+                "usage", List.of(
+                        "POST /v1/payments - Create a new payment",
+                        "GET /v1/payments/order/{orderId} - View payments for an order"
+                )
+        ));
+    }
+}
+

@@ -1,0 +1,43 @@
+/*package com.eci.paymentsservice.service;
+
+import com.eci.paymentsservice.dto.PaymentRequest;
+import com.eci.paymentsservice.dto.PaymentResponse;
+
+import java.util.UUID;
+import java.util.List;
+
+public interface PaymentService {
+    PaymentResponse charge(PaymentRequest request);
+    PaymentResponse getPayment(UUID id);
+    PaymentResponse refund(UUID id, String idempotencyKey);
+    List<PaymentResponse> getAllPayments();
+}
+*/
+
+package com.eci.paymentsservice.service;
+
+import com.eci.paymentsservice.dto.PaymentRequest;
+import com.eci.paymentsservice.dto.PaymentResponse;
+
+import java.util.List;
+import java.util.UUID;
+
+public interface PaymentService {
+
+    //  Create or process a payment (idempotent)
+    PaymentResponse charge(PaymentRequest request);
+
+    //  Retrieve a payment by its ID
+    PaymentResponse getPayment(UUID id);
+
+    //  Process a refund for an existing payment
+    PaymentResponse refund(UUID id, String idempotencyKey);
+
+    //  Get all payments in the system (for admin/debug use)
+    List<PaymentResponse> getAllPayments();
+
+    // Optional: Fetch all payments for a given order
+    //List<PaymentResponse> getPaymentsByOrderId(Long orderId);
+    List<PaymentResponse> getPaymentsByOrderId(String orderId);
+}
+
