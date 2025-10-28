@@ -1,0 +1,91 @@
+package com.eci.paymentservice.service.impl;
+
+import com.eci.paymentservice.dto.PaymentRequest;
+import com.eci.paymentservice.dto.PaymentResponse;
+import com.eci.paymentservice.model.Payment;
+import com.eci.paymentservice.repository.PaymentRepository;
+import com.eci.paymentservice.service.PaymentService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class PaymentServiceImpl implements PaymentService {
+
+    private final PaymentRepository paymentRepository;
+
+    @Override
+    public PaymentResponse createPayment(PaymentRequest paymentRequest) {
+        log.info("Creating payment for order {}", paymentRequest.getOrderId());
+        // ✅ Convert orderId to String (since model stores it as String)
+        String orderIdStr = String.valueOf(paymentRequest.getOrderId());
+        Payment payment = Payment.builder()
+                .orderId(paymentRequest.getOrderId())
+                .amount(paymentRequest.getAmount())
+                .currency(paymentRequest.getCurrency())
+                .paymentMethod(paymentRequest.getMethod()) // ✅ fixed getter name
+                .status("SUCCESS")
+                .createdAt(OffsetDateTime.now())
+                .build();
+
+        Payment saved = paymentRepository.save(payment);
+
+        return PaymentResponse.builder()
+                .paymentId(saved.getPaymentId())
+                .orderId(saved.getOrderId())
+                .amount(saved.getAmount())
+                .currency(saved.getCurrency())
+                .method(saved.getPaymentMethod()) // ✅ corrected field reference
+                .status(saved.getStatus())
+                .processedAt(saved.getCreatedAt()) // ✅ renamed to match DTO field
+                .build();
+    }
+
+    @Override
+    public List<PaymentResponse> getPaymentByOrderId(String orderId) {
+        // ✅ Convert String to Long if numeric
+        Long orderIdLong = null;
+        try {
+            orderIdLong = Long.parseLong(orderId);
+        } catch (NumberFormatException e) {
+            log.warn("Order ID '{}' is not numeric, continuing as string filter", orderId);
+        }
+
+        return paymentRepository.findAll().stream()
+                .filter(p -> {
+                    if (orderIdLong != null) {
+                        return p.getOrderId() != null && p.getOrderId().equals(orderIdLong);
+                    } else {
+                        return String.valueOf(p.getOrderId()).equals(orderId);
+                    }
+                })
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PaymentResponse> getAllPayments() {
+        return paymentRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    private PaymentResponse mapToResponse(Payment p) {
+        return PaymentResponse.builder()
+                .paymentId(p.getPaymentId())
+                .orderId(p.getOrderId())
+                .amount(p.getAmount())
+                .currency(p.getCurrency())
+                .method(p.getPaymentMethod())
+                .status(p.getStatus())
+                .processedAt(p.getCreatedAt())
+                .build();
+    }
+}
+

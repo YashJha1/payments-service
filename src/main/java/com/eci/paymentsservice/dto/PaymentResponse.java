@@ -1,20 +1,23 @@
 package com.eci.paymentservice.dto;
 
-import lombok.*;
-import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.OffsetDateTime;
 
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class PaymentResponse {
     private Long paymentId;
-    private String orderId;
-    private BigDecimal amount;
+    private String orderId;   // ✅ FIXED: was Long earlier
+    private Double amount;
+    private String method;
     private String currency;
-    private String paymentMethod;
     private String status;
-    private OffsetDateTime createdAt;
+    private OffsetDateTime processedAt;
 }
 

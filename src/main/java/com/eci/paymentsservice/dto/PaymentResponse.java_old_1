@@ -1,0 +1,73 @@
+/*package com.eci.paymentservice.dto;
+
+import lombok.*;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class PaymentResponse {
+    private Long paymentId;
+    private String orderId;
+    private BigDecimal amount;
+    private String currency;
+    private String paymentMethod;
+    private String status;
+    private OffsetDateTime createdAt;
+}
+*/
+/*
+package com.eci.paymentsservice.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class PaymentResponse {
+    private Long paymentId;
+    private Long orderId;
+    private Double amount;
+    private String method;
+    private String status;
+    private String reference;
+    private String createdAt;
+}
+*/
+
+package com.eci.paymentservice.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.util.*;
+import java.time.OffsetDateTime;
+
+/**
+ * Simple DTO returned by Payment endpoints and used by other services.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PaymentResponse {
+    private Long id;                // internal payment id (optional)
+    private String paymentId;       // string id from CSV or system (optional)
+    private String orderId;           // associated order id (if numeric)
+    private String orderIdRaw;      // if order id in CSV is stored as string, fallback
+    private Double amount;
+    private String method;          // e.g. UPI, CARD
+    private String status;          // SUCCESS, FAILED, PENDING
+    //private OffsetDateTime createdAt;
+    private OffsetDateTime processedAt;
+    //private String note;    // optional free text
+    private Map<String, String> metadata;
+}
+
